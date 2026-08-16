@@ -1,0 +1,1629 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>双色球选号分析器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --panel-2: #eef3ff;
+      --text: #18212f;
+      --muted: #627089;
+      --line: #d7deea;
+      --accent: #2f6fed;
+      --accent-2: #1f8a70;
+      --warn: #c26a00;
+      --bad: #b42318;
+      --good: #127a3d;
+      --shadow: 0 8px 28px rgba(23, 38, 74, 0.08);
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #f8faff 0%, var(--bg) 100%);
+    }
+
+    header {
+      padding: 22px 20px 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 3;
+    }
+
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+    .sub {
+      margin-top: 6px;
+      color: var(--muted);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    button, .chip {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+      font: inherit;
+    }
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    button.ghost {
+      background: transparent;
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    main { padding: 18px 20px 28px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .panel h2 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
+    .tabs {
+      display: inline-flex;
+      gap: 6px;
+      padding: 4px;
+      background: #edf1f8;
+      border-radius: 999px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      border: 0;
+      background: transparent;
+      padding: 8px 12px;
+      border-radius: 999px;
+    }
+    .tab.active {
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(21, 31, 53, 0.12);
+    }
+
+    textarea, input[type="text"], input[type="number"], select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font: inherit;
+      color: var(--text);
+    }
+
+    textarea {
+      min-height: 230px;
+      resize: vertical;
+      line-height: 1.65;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+    textarea.compact {
+      min-height: 132px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    .cols-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: linear-gradient(180deg, #fff 0%, #fbfcff 100%);
+    }
+    .stat .k { color: var(--muted); font-size: 12px; }
+    .stat .v { font-size: 18px; font-weight: 700; margin-top: 4px; }
+
+    .section {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .result {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+    }
+    .result .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+    .ball {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 32px;
+      height: 32px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: var(--panel-2);
+      border: 1px solid #cbd8ff;
+      margin-right: 6px;
+      margin-bottom: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .ball.blue {
+      background: #ecf7f3;
+      border-color: #bde6d6;
+    }
+
+    .bar {
+      height: 8px;
+      background: #ebeff6;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .bar > span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #5ea0ff);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .muted { color: var(--muted); }
+    .ok { color: var(--good); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+
+    .hidden { display: none !important; }
+
+    .weights {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .weight {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: #fff;
+    }
+    .weight label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    @media (max-width: 960px) {
+      .grid, .grid-2, .cols-3, .weights { grid-template-columns: 1fr; }
+      header { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>双色球选号分析器</h1>
+      <div class="sub">输入近 20 期开奖数据，生成候选号码、模型评分和复盘建议。这里展示的是模型相对评分，不是可兑现的中奖概率。</div>
+      <div class="toolbar">
+        <button class="primary" id="btnGenerate">▶ 生成推荐</button>
+        <button id="btnAnalyze">⇄ 复盘分析</button>
+        <button id="btnBacktest">▦ 回测分析</button>
+        <button id="btnShowBatch">▤ 批量回测输入</button>
+        <button class="ghost" id="btnFill">⊕ 示例数据</button>
+        <button class="ghost" id="btnClear">× 清空</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap grid">
+      <section class="panel">
+        <div class="tabs">
+          <button class="tab active" data-tab="input">输入数据</button>
+          <button class="tab" data-tab="result">推荐结果</button>
+          <button class="tab" data-tab="review">复盘分析</button>
+          <button class="tab" data-tab="backtest">回测分析</button>
+        </div>
+
+        <div id="tab-input">
+          <h2>历史数据</h2>
+          <textarea id="drawInput" placeholder="每行一期开奖结果，例如：
+01 05 12 18 24 31 + 09
+03 08 11 16 22 30 + 14"></textarea>
+          <div class="hint">支持格式：`01 05 12 18 24 31 + 09`、`01,05,12,18,24,31,09`、JSON 数组。建议粘贴最近 20 期，最新一期在上。</div>
+          <div class="section">
+            <h2>最新一期</h2>
+            <input type="text" id="latestDrawInput" placeholder="例如：02 13 14 16 20 24 + 05">
+            <div class="hint">回测时使用；它不占用历史 20 期窗口。</div>
+            <div class="toolbar" style="margin-top:10px">
+              <button id="btnQuickBacktest">▦ 回测当前</button>
+            </div>
+          </div>
+          <div class="section" id="batchBacktestSection">
+            <h2>批量最新期</h2>
+            <textarea class="compact" id="batchDrawInput" placeholder="把最新 7 期粘贴到这里，最新一期放最上面，例如：
+02 13 14 16 20 24 + 05
+02 04 15 23 25 27 + 03"></textarea>
+            <div class="hint">批量回测会自动滚动窗口：先用历史 20 期验证最早的新一期，再把该期开奖结果加入历史，继续验证下一期。</div>
+            <div class="toolbar" style="margin-top:10px">
+              <button id="btnBatchBacktest">▦ 批量滚动回测</button>
+            </div>
+          </div>
+          <div class="section">
+            <h2>参数</h2>
+            <div class="weights">
+              <div class="weight"><label>热度权重</label><input type="number" id="wHeat" value="15" min="0" max="40"></div>
+              <div class="weight"><label>遗漏权重</label><input type="number" id="wMiss" value="15" min="0" max="40"></div>
+              <div class="weight"><label>区间权重</label><input type="number" id="wRegion" value="15" min="0" max="40"></div>
+              <div class="weight"><label>奇偶权重</label><input type="number" id="wOdd" value="15" min="0" max="40"></div>
+              <div class="weight"><label>大小权重</label><input type="number" id="wSize" value="15" min="0" max="40"></div>
+              <div class="weight"><label>和值权重</label><input type="number" id="wSum" value="10" min="0" max="40"></div>
+              <div class="weight"><label>连号权重</label><input type="number" id="wCon" value="10" min="0" max="40"></div>
+              <div class="weight"><label>重号权重</label><input type="number" id="wRep" value="5" min="0" max="20"></div>
+              <div class="weight"><label>蓝球权重</label><input type="number" id="wBlue" value="5" min="0" max="20"></div>
+              <div class="weight"><label>数据顺序</label><select id="orderMode"><option value="newest-first" selected>最新在上</option><option value="oldest-first">最新在下</option></select></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-result" class="hidden">
+          <h2>推荐结果</h2>
+          <div class="cols-3" id="summaryStats"></div>
+          <div class="section">
+            <div class="list" id="recommendList"></div>
+          </div>
+        </div>
+
+        <div id="tab-review" class="hidden">
+          <h2>新开奖号复盘</h2>
+          <input type="text" id="newDrawInput" placeholder="输入新开奖号，例如：03 08 11 16 22 30 + 14">
+          <div class="section">
+            <div class="grid-2">
+              <div class="stat">
+                <div class="k">命中概览</div>
+                <div class="v" id="reviewHit">-</div>
+                <div class="hint" id="reviewHitHint">等待分析</div>
+              </div>
+              <div class="stat">
+                <div class="k">优化建议</div>
+                <div class="v" id="reviewAdvice">-</div>
+                <div class="hint" id="reviewAdviceHint">等待分析</div>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="list" id="reviewList"></div>
+          </div>
+        </div>
+
+        <div id="tab-backtest" class="hidden">
+          <h2>策略回测</h2>
+          <div class="cols-3" id="backtestSummary"></div>
+          <div class="section">
+            <div class="list" id="backtestList"></div>
+          </div>
+          <div class="section">
+            <h2>历史记录</h2>
+            <div class="list" id="backtestHistory"></div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <h2>模型说明</h2>
+        <div class="stat">
+          <div class="k">理论一等奖概率</div>
+          <div class="v" id="theoryOdds">-</div>
+          <div class="hint">双色球 6 红 + 1 蓝的理论中一等奖概率固定不变，页面里不会把它包装成真实可预测概率。</div>
+        </div>
+        <div class="section">
+          <div class="stat">
+            <div class="k">模型相对概率</div>
+            <div class="v" id="modelProb">-</div>
+            <div class="bar"><span id="modelProbBar" style="width:0%"></span></div>
+            <div class="hint">这是候选之间的归一化权重，不是客观中奖概率。</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="stat">
+            <div class="k">数据状态</div>
+            <div class="v" id="dataState">未载入</div>
+            <div class="hint" id="dataStateHint">请先输入近 20 期数据。</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const RED_MIN = 1;
+    const RED_MAX = 33;
+    const BLUE_MIN = 1;
+    const BLUE_MAX = 16;
+    const WINDOW = 20;
+
+    const $ = (id) => document.getElementById(id);
+    const comb = (n, k) => {
+      let r = 1;
+      for (let i = 1; i <= k; i++) r = (r * (n - k + i)) / i;
+      return r;
+    };
+
+    const app = {
+      draws: [],
+      candidates: [],
+      stats: null,
+      weights: {
+        heat: 15,
+        miss: 15,
+        region: 15,
+        odd: 15,
+        size: 15,
+        sum: 10,
+        con: 10,
+        rep: 5,
+        blue: 5,
+      },
+    };
+
+    const STRATEGIES = [
+      { id: "v1", name: "v1 均衡型", pool: 16, dan: 3, sumLow: 1.5, sumHigh: 1.5, blue: "long", middleRequired: false, sticky: false, highMode: "none", oddExtreme: false },
+      { id: "v2", name: "v2 扩池降胆", pool: 20, dan: 2, sumLow: 2.5, sumHigh: 2.5, blue: "mixed", middleRequired: false, sticky: false, highMode: "none", oddExtreme: false },
+      { id: "v3", name: "v3 温遗漏单胆", pool: 20, dan: 1, sumLow: 3, sumHigh: 2.5, blue: "mixed", middleRequired: false, sticky: false, highMode: "warm", oddExtreme: false },
+      { id: "v4", name: "v4 中区准入", pool: 20, dan: 1, sumLow: 3, sumHigh: 2.5, blue: "mixed", middleRequired: true, sticky: true, highMode: "warm", oddExtreme: false },
+      { id: "v5", name: "v5 高区分层", pool: 20, dan: 1, sumLow: 3, sumHigh: 2.5, blue: "mixed", middleRequired: true, sticky: true, highMode: "split", oddExtreme: false },
+    ];
+
+    const STABLE_ENSEMBLE_PLAN = [
+      { strategyId: "v4", slots: 2, role: "主稳" },
+      { strategyId: "v2", slots: 2, role: "副稳" },
+      { strategyId: "adaptive", slots: 1, role: "补位" },
+    ];
+
+    const sampleText = [
+      "01 05 12 18 24 31 + 09",
+      "03 08 11 16 22 30 + 14",
+      "02 06 13 17 25 33 + 02",
+      "04 07 14 19 23 29 + 11",
+      "01 09 10 21 26 32 + 16",
+      "05 06 15 20 27 30 + 07",
+      "02 08 12 18 24 28 + 04",
+      "03 07 11 17 22 31 + 10",
+      "04 09 13 19 25 33 + 01",
+      "01 06 14 16 23 29 + 12",
+      "05 08 10 18 27 32 + 06",
+      "02 07 15 20 26 30 + 15",
+      "03 09 12 21 24 31 + 03",
+      "04 06 11 17 28 33 + 08",
+      "01 08 13 19 22 29 + 13",
+      "02 05 14 18 25 30 + 05",
+      "03 07 10 16 23 32 + 02",
+      "04 09 15 20 27 31 + 09",
+      "01 06 12 17 24 33 + 14",
+      "02 08 11 18 26 29 + 07",
+    ].join("\n");
+
+    function parseInput(text, orderMode = getDataOrderMode(), limitWindow = true) {
+      const raw = text.trim();
+      if (!raw) return [];
+      const draws = raw.startsWith("[")
+        ? parseJson(raw)
+        : raw.split(/\n+/).map((line, idx) => parseLine(line, idx + 1)).filter(Boolean);
+      return normalizeInputOrder(draws, orderMode, limitWindow);
+    }
+
+    function getDataOrderMode() {
+      return $("orderMode") ? $("orderMode").value : "newest-first";
+    }
+
+    function normalizeInputOrder(draws, orderMode, limitWindow = true) {
+      if (orderMode === "newest-first") {
+        const ordered = draws.slice().reverse();
+        return limitWindow ? ordered.slice(-WINDOW) : ordered;
+      }
+      return limitWindow ? draws.slice(-WINDOW) : draws.slice();
+    }
+
+    function parseJson(text) {
+      const arr = JSON.parse(text);
+      return arr.map((item, idx) => normalizeDraw(item, idx + 1));
+    }
+
+    function parseLine(line, idx) {
+      const cleaned = line.replace(/[,|]/g, " ").replace(/\+/g, " ").trim();
+      if (!cleaned) return null;
+      const nums = cleaned.split(/\s+/).map((x) => Number(x)).filter((x) => Number.isFinite(x));
+      if (nums.length < 7) throw new Error(`第 ${idx} 行格式不够，至少要 6 红 + 1 蓝`);
+      const red = nums.slice(0, 6);
+      const blue = nums[6];
+      return normalizeDraw({ period: String(idx).padStart(4, "0"), red, blue }, idx);
+    }
+
+    function normalizeDraw(item, idx) {
+      const red = (item.red || []).map(Number).sort((a, b) => a - b);
+      const blue = Number(item.blue);
+      if (red.length !== 6) throw new Error(`第 ${idx} 条红球数量必须是 6`);
+      if (new Set(red).size !== 6) throw new Error(`第 ${idx} 条红球不能重复`);
+      if (red.some((n) => n < RED_MIN || n > RED_MAX)) throw new Error(`第 ${idx} 条红球范围应在 1-33`);
+      if (blue < BLUE_MIN || blue > BLUE_MAX) throw new Error(`第 ${idx} 条蓝球范围应在 1-16`);
+      return {
+        period: String(item.period || idx).trim(),
+        red,
+        blue,
+      };
+    }
+
+    function region(n) {
+      if (n <= 11) return 0;
+      if (n <= 22) return 1;
+      return 2;
+    }
+
+    function highBand(n) {
+      if (n >= 23 && n <= 27) return 1;
+      if (n >= 29 && n <= 33) return 2;
+      return 0;
+    }
+
+    function calcStats(draws) {
+      const redCounts = Object.fromEntries(Array.from({ length: 33 }, (_, i) => [i + 1, 0]));
+      const blueCounts = Object.fromEntries(Array.from({ length: 16 }, (_, i) => [i + 1, 0]));
+      const redMiss = Object.fromEntries(Array.from({ length: 33 }, (_, i) => [i + 1, draws.length]));
+      const blueMiss = Object.fromEntries(Array.from({ length: 16 }, (_, i) => [i + 1, draws.length]));
+      const sums = [];
+
+      draws.forEach((draw, idx) => {
+        draw.red.forEach((n) => redCounts[n]++);
+        blueCounts[draw.blue]++;
+        sums.push(draw.red.reduce((a, b) => a + b, 0));
+      });
+
+      [...draws].reverse().forEach((draw, offset) => {
+        draw.red.forEach((n) => {
+          if (redMiss[n] === draws.length) redMiss[n] = offset;
+        });
+        if (blueMiss[draw.blue] === draws.length) blueMiss[draw.blue] = offset;
+      });
+
+      return {
+        redCounts,
+        blueCounts,
+        redMiss,
+        blueMiss,
+        sumMean: sums.length ? avg(sums) : 0,
+        sumStd: sums.length > 1 ? pstdev(sums) : 0,
+        lastSum: sums.length ? sums[sums.length - 1] : 0,
+        lastHighA: draws.length ? draws[draws.length - 1].red.filter((n) => highBand(n) === 1).length : 0,
+        lastHighB: draws.length ? draws[draws.length - 1].red.filter((n) => highBand(n) === 2).length : 0,
+        highStreak: calcHighStreak(sums, sums.length ? avg(sums) : 0, sums.length > 1 ? pstdev(sums) : 0),
+        lastRed: draws.length ? new Set(draws[draws.length - 1].red) : new Set(),
+      };
+    }
+
+    function calcHighStreak(sums, mean, std) {
+      if (!sums.length || std === 0) return 0;
+      const threshold = mean + std * 0.6;
+      let streak = 0;
+      for (let i = sums.length - 1; i >= 0; i--) {
+        if (sums[i] >= threshold) streak += 1;
+        else break;
+      }
+      return streak;
+    }
+
+    function avg(arr) {
+      return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+
+    function pstdev(arr) {
+      const m = avg(arr);
+      return Math.sqrt(avg(arr.map((x) => (x - m) ** 2)));
+    }
+
+    function scoreRedPool(stats, n) {
+      const count = stats.redCounts[n];
+      const miss = stats.redMiss[n];
+      const recent = stats.lastRed.has(n) ? 1 : 0;
+      const warmMiss = miss >= 2 && miss <= 6 ? 1.4 : 0;
+      const middleBias = region(n) === 1 ? 1.0 : 0;
+      const pushMode = stats.highStreak >= 2;
+      const pullbackMode = !pushMode;
+      const highA = highBand(n) === 1;
+      const highB = highBand(n) === 2;
+      const highBandBias = highA
+        ? (pullbackMode ? 2.0 : 0.8)
+        : highB
+          ? (pushMode ? 2.2 : 0.15)
+          : 0;
+      const lowSumBias = region(n) === 0 && pullbackMode && miss <= 6 ? 0.4 : 0;
+      const stickyPenalty = count >= 4 ? (count - 3) * 0.5 : 0;
+      return count * 2.8 + Math.min(miss, 20) * 0.65 + warmMiss + middleBias + highBandBias + lowSumBias - recent * 0.4 - stickyPenalty + (count > 0 ? 0.6 : 0);
+    }
+
+    function buildRedPool(stats, size = 20) {
+      const items = Array.from({ length: 33 }, (_, i) => i + 1).sort((a, b) => scoreRedPool(stats, b) - scoreRedPool(stats, a));
+      const picked = [];
+      const regionSeen = [0, 0, 0];
+      items.forEach((n) => {
+        if (picked.length >= size) return;
+        const r = region(n);
+        if (regionSeen[r] >= 7) return;
+        picked.push(n);
+        regionSeen[r]++;
+      });
+      if (picked.length < size) {
+        items.forEach((n) => {
+          if (!picked.includes(n)) picked.push(n);
+        });
+      }
+      return [...picked.slice(0, size)].sort((a, b) => a - b);
+    }
+
+    function buildBluePool(stats, size = 6) {
+      const items = Array.from({ length: 16 }, (_, i) => i + 1);
+      const byLongMiss = [...items].sort((a, b) => {
+        const sa = stats.blueCounts[a] * 3 + Math.min(stats.blueMiss[a], 20) * 0.7;
+        const sb = stats.blueCounts[b] * 3 + Math.min(stats.blueMiss[b], 20) * 0.7;
+        return sb - sa || a - b;
+      });
+      const byWarm = [...items].sort((a, b) => {
+        const sa = stats.blueCounts[a] * 3.5 + (stats.blueMiss[a] <= 6 ? 2 : 0) + Math.max(0, 8 - stats.blueMiss[a]) * 0.4;
+        const sb = stats.blueCounts[b] * 3.5 + (stats.blueMiss[b] <= 6 ? 2 : 0) + Math.max(0, 8 - stats.blueMiss[b]) * 0.4;
+        return sb - sa || a - b;
+      });
+      const byRecent = [...items].sort((a, b) => stats.blueMiss[a] - stats.blueMiss[b] || stats.blueCounts[b] - stats.blueCounts[a] || a - b);
+      return uniqueTake([...byLongMiss.slice(0, 3), ...byWarm.slice(0, 3), ...byRecent.slice(0, 3), ...byLongMiss], size).sort((a, b) => a - b);
+    }
+
+    function uniqueTake(items, size) {
+      const out = [];
+      for (const item of items) {
+        if (!out.includes(item)) out.push(item);
+        if (out.length >= size) break;
+      }
+      return out;
+    }
+
+    function chooseDan(redPool, stats, count = 1) {
+      return redPool
+        .map((n) => ({
+          n,
+          s: stats.redCounts[n] * 2.8 + Math.min(stats.redMiss[n], 20) * 0.6 + (stats.redCounts[n] > 0 && stats.redCounts[n] <= 4 ? 1 : 0) + (stats.redMiss[n] >= 2 && stats.redMiss[n] <= 6 ? 0.8 : 0),
+        }))
+        .sort((a, b) => b.s - a.s || a.n - b.n)
+        .reduce((acc, item) => {
+          if (acc.length >= count) return acc;
+          acc.push(item.n);
+          return acc;
+        }, [])
+        .sort((a, b) => a - b);
+    }
+
+    function scoreBalance(value) {
+      if (value === 3) return 15;
+      if (value === 2 || value === 4) return 12;
+      if (value === 1 || value === 5) return 8;
+      return 3;
+    }
+
+    function scoreSum(total, mean, std) {
+      if (std === 0) return 10;
+      const lo = mean - std;
+      const hi = mean + std;
+      if (total >= lo && total <= hi) {
+        const dist = Math.abs(total - mean);
+        return dist <= std * 0.25 ? 10 : dist <= std * 0.5 ? 8 : 6;
+      }
+      return Math.abs(total - mean) <= std * 1.5 ? 2 : 0;
+    }
+
+    function comboScore(combo, stats, weights) {
+      const odd = combo.filter((n) => n % 2 === 1).length;
+      const small = combo.filter((n) => n <= 16).length;
+      const regions = [0, 0, 0];
+      combo.forEach((n) => regions[region(n)]++);
+      const repeats = combo.filter((n) => stats.lastRed.has(n)).length;
+      const consecutive = combo.slice(1).reduce((acc, n, idx) => acc + (n === combo[idx] + 1 ? 1 : 0), 0);
+      const total = combo.reduce((a, b) => a + b, 0);
+      const heatAvg = avg(combo.map((n) => stats.redCounts[n]));
+      const missAvg = avg(combo.map((n) => stats.redMiss[n]));
+      const highRegionCount = combo.filter((n) => region(n) === 2).length;
+      const middleRegionCount = combo.filter((n) => region(n) === 1).length;
+      const highA = combo.filter((n) => highBand(n) === 1).length;
+      const highB = combo.filter((n) => highBand(n) === 2).length;
+      const pushMode = stats.highStreak >= 2;
+      const targetSum = pushMode ? stats.sumMean + stats.sumStd * 0.8 : stats.sumMean;
+
+      const raw = {
+        heat: Math.min(weights.heat, heatAvg * 3),
+        miss: Math.min(weights.miss, missAvg * 1.2),
+        region: allPositive(regions)
+          ? weights.region
+          : middleRegionCount > 0 && regions.filter(Boolean).length === 2
+            ? 0.8 * weights.region
+            : middleRegionCount > 0
+              ? 0.5 * weights.region
+              : 0.15 * weights.region,
+        odd: (scoreBalance(odd) / 15) * weights.odd,
+        size: (scoreBalance(small) / 15) * weights.size,
+        sum: (scoreSum(total, targetSum, stats.sumStd) / 10) * weights.sum,
+        con: consecutive <= 1 ? weights.con : consecutive === 2 ? 0.4 * weights.con : 0,
+        rep: repeats <= 2 ? weights.rep : 0.2 * weights.rep,
+        high: pushMode
+          ? Math.min(3, highB) * 0.9 + Math.min(1, highA) * 0.2
+          : Math.min(3, highA) * 0.9 + Math.min(1, highB) * 0.1,
+      };
+      const totalScore = Object.values(raw).reduce((a, b) => a + b, 0);
+      return { totalScore, raw };
+    }
+
+    function allPositive(arr) {
+      return arr.every((x) => x > 0);
+    }
+
+    function validCombo(combo, stats) {
+      const odd = combo.filter((n) => n % 2 === 1).length;
+      const small = combo.filter((n) => n <= 16).length;
+      const regCount = new Set(combo.map(region)).size;
+      const middleCount = combo.filter((n) => region(n) === 1).length;
+      const highA = combo.filter((n) => highBand(n) === 1).length;
+      const highB = combo.filter((n) => highBand(n) === 2).length;
+      const repeats = combo.filter((n) => stats.lastRed.has(n)).length;
+      const consecutive = combo.slice(1).reduce((acc, n, idx) => acc + (n === combo[idx] + 1 ? 1 : 0), 0);
+      const total = combo.reduce((a, b) => a + b, 0);
+      const pushMode = stats.highStreak >= 2;
+      const withinSum = stats.sumStd === 0 || (pushMode
+        ? total >= stats.sumMean - stats.sumStd * 0.5 && total <= stats.sumMean + stats.sumStd * 3.0
+        : total >= stats.sumMean - stats.sumStd * 3 && total <= stats.sumMean + stats.sumStd * 2.5);
+      return [2, 3, 4].includes(odd) &&
+        [2, 3, 4].includes(small) &&
+        regCount >= 2 &&
+        middleCount >= 1 &&
+        (pushMode ? highB >= 1 : highA >= 1) &&
+        consecutive <= 2 &&
+        repeats <= 3 &&
+        withinSum;
+    }
+
+    function blueScore(n, stats, weights) {
+      return ((stats.blueCounts[n] * 2.5 + Math.min(stats.blueMiss[n], 20) * 0.8) / 10) * weights.blue;
+    }
+
+    function generate(draws, weights) {
+      return generateStableEnsemble(draws, weights);
+    }
+
+    function generateStableEnsemble(draws, weights) {
+      const stats = calcStats(draws);
+      const adaptiveId = stats.highStreak >= 2 ? "v5" : "v3";
+      const plan = STABLE_ENSEMBLE_PLAN.flatMap((item) => {
+        const strategyId = item.strategyId === "adaptive" ? adaptiveId : item.strategyId;
+        return Array.from({ length: item.slots }, () => ({
+          ...item,
+          strategyId,
+          strategy: getStrategy(strategyId),
+        }));
+      }).filter((item) => item.strategy);
+      const models = Object.fromEntries([...new Set(plan.map((item) => item.strategyId))]
+        .map((id) => [id, generateByStrategy(draws, getStrategy(id), weights)]));
+      const results = [];
+      plan.forEach((slot) => {
+        const model = models[slot.strategyId];
+        const picked = pickEnsembleCandidate(model.results, results);
+        if (picked) {
+          results.push({
+            ...picked,
+            strategy: slot.strategyId,
+            strategyName: slot.strategy.name,
+            role: slot.role,
+          });
+        }
+      });
+      const fallback = Object.values(models).flatMap((model) => model.results.map((item) => ({
+        ...item,
+        strategyName: model.strategy.name,
+        role: "补充",
+      }))).sort((a, b) => b.score - a.score);
+      while (results.length < 5) {
+        const picked = pickEnsembleCandidate(fallback, results);
+        if (!picked) break;
+        results.push(picked);
+      }
+      const redPool = uniqueTake(Object.values(models).flatMap((model) => model.redPool), 33).sort((a, b) => a - b);
+      const bluePool = uniqueTake(Object.values(models).flatMap((model) => model.bluePool), 16).sort((a, b) => a - b);
+      const dan = uniqueTake(Object.values(models).flatMap((model) => model.dan), 6).sort((a, b) => a - b);
+      return {
+        stats,
+        redPool,
+        bluePool,
+        dan,
+        results,
+        drawCount: draws.length,
+        ensemble: true,
+        ensemblePlan: plan.map((item) => `${item.role}:${item.strategy.name}`),
+        adaptiveStrategy: getStrategy(adaptiveId).name,
+      };
+    }
+
+    function getStrategy(id) {
+      return STRATEGIES.find((strategy) => strategy.id === id);
+    }
+
+    function pickEnsembleCandidate(candidates, picked) {
+      return candidates.find((item) => {
+        if (picked.some((x) => x.red.join("-") === item.red.join("-") && x.blue === item.blue)) return false;
+        if (picked.some((x) => overlapCount(x.red, item.red) >= 5)) return false;
+        if (picked.some((x) => overlapCount(x.red, item.red) >= 4 && x.blue === item.blue)) return false;
+        return true;
+      });
+    }
+
+    function generateByStrategy(draws, strategy, weights = readWeights()) {
+      const stats = calcStats(draws);
+      const redPool = buildStrategyRedPool(stats, strategy);
+      const bluePool = strategy.blue === "long" ? buildStrategyBluePoolLong(stats) : buildBluePool(stats);
+      const dan = chooseStrategyDan(redPool, stats, strategy);
+      const combos = combinations(redPool, 6).filter((combo) => {
+        if (!dan.every((n) => combo.includes(n))) return false;
+        return validStrategyCombo(combo, stats, strategy);
+      });
+      const extra = strategy.highMode === "split" ? buildHighSplitCombos(redPool, stats) : [];
+      const results = [];
+      [...combos, ...extra].forEach((combo) => {
+        const s = scoreStrategyCombo(combo, stats, strategy, weights);
+        bluePool.forEach((blue) => {
+          results.push({
+            red: combo.slice().sort((a, b) => a - b),
+            blue,
+            score: s.totalScore + blueScore(blue, stats, weights),
+            parts: s.raw,
+            strategy: strategy.id,
+          });
+        });
+      });
+      results.sort((a, b) => b.score - a.score || a.red.join(",").localeCompare(b.red.join(",")) || a.blue - b.blue);
+      return { stats, redPool, bluePool, dan, results: diversifyResults(results, 5), drawCount: draws.length, strategy };
+    }
+
+    function buildStrategyRedPool(stats, strategy) {
+      const items = Array.from({ length: 33 }, (_, i) => i + 1).sort((a, b) => strategyRedScore(stats, b, strategy) - strategyRedScore(stats, a, strategy));
+      const picked = [];
+      const regionSeen = [0, 0, 0];
+      const maxRegion = strategy.pool <= 16 ? 6 : 7;
+      items.forEach((n) => {
+        if (picked.length >= strategy.pool) return;
+        const r = region(n);
+        if (regionSeen[r] >= maxRegion) return;
+        picked.push(n);
+        regionSeen[r]++;
+      });
+      items.forEach((n) => {
+        if (picked.length < strategy.pool && !picked.includes(n)) picked.push(n);
+      });
+      return picked.slice(0, strategy.pool).sort((a, b) => a - b);
+    }
+
+    function strategyRedScore(stats, n, strategy) {
+      const count = stats.redCounts[n];
+      const miss = stats.redMiss[n];
+      const recent = stats.lastRed.has(n) ? 1 : 0;
+      if (strategy.id === "v1" || strategy.id === "v2") {
+        return count * 3 + Math.min(miss, 20) * 0.7 + (count > 0 ? 0.7 : 0) - recent * 0.5;
+      }
+      const warmMiss = miss >= 2 && miss <= 6 ? 1.4 : 0;
+      const middleBias = strategy.middleRequired ? (region(n) === 1 ? 1.0 : 0) : 0;
+      const stickyPenalty = strategy.sticky && count >= 4 ? (count - 3) * 0.5 : 0;
+      let highBias = 0;
+      if (strategy.highMode === "split") {
+        const pushMode = stats.highStreak >= 2;
+        const band = highBand(n);
+        highBias = band === 1 ? (pushMode ? 0.8 : 2.0) : band === 2 ? (pushMode ? 2.2 : 0.15) : 0;
+      } else if (strategy.highMode === "warm") {
+        highBias = region(n) === 2 && miss <= 8 ? 0.8 : 0;
+      }
+      return count * 2.8 + Math.min(miss, 20) * 0.65 + warmMiss + middleBias + highBias + (count > 0 ? 0.6 : 0) - recent * 0.4 - stickyPenalty;
+    }
+
+    function buildStrategyBluePoolLong(stats, size = 4) {
+      return Array.from({ length: 16 }, (_, i) => i + 1)
+        .sort((a, b) => {
+          const sa = stats.blueCounts[a] * 3 + Math.min(stats.blueMiss[a], 20) * 0.7;
+          const sb = stats.blueCounts[b] * 3 + Math.min(stats.blueMiss[b], 20) * 0.7;
+          return sb - sa || a - b;
+        })
+        .slice(0, size)
+        .sort((a, b) => a - b);
+    }
+
+    function chooseStrategyDan(redPool, stats, strategy) {
+      return redPool
+        .map((n) => {
+          const base = strategy.id === "v1" || strategy.id === "v2" ? stats.redCounts[n] * 3 : stats.redCounts[n] * 2.8;
+          const warm = strategy.id === "v1" || strategy.id === "v2" ? 0 : (stats.redMiss[n] >= 2 && stats.redMiss[n] <= 6 ? 0.8 : 0);
+          return { n, s: base + Math.min(stats.redMiss[n], 20) * 0.6 + (stats.redCounts[n] > 0 && stats.redCounts[n] <= 4 ? 1 : 0) + warm };
+        })
+        .sort((a, b) => b.s - a.s || a.n - b.n)
+        .slice(0, strategy.dan)
+        .map((x) => x.n)
+        .sort((a, b) => a - b);
+    }
+
+    function validStrategyCombo(combo, stats, strategy) {
+      const odd = combo.filter((n) => n % 2 === 1).length;
+      const small = combo.filter((n) => n <= 16).length;
+      const regCount = new Set(combo.map(region)).size;
+      const middleCount = combo.filter((n) => region(n) === 1).length;
+      const consecutive = combo.slice(1).reduce((acc, n, idx) => acc + (n === combo[idx] + 1 ? 1 : 0), 0);
+      const repeats = combo.filter((n) => stats.lastRed.has(n)).length;
+      const total = combo.reduce((a, b) => a + b, 0);
+      const oddAllowed = strategy.oddExtreme ? [1, 2, 3, 4, 5] : [2, 3, 4];
+      if (!oddAllowed.includes(odd)) return false;
+      if (![2, 3, 4].includes(small)) return false;
+      if (regCount < 2) return false;
+      if (strategy.middleRequired && middleCount < 1) return false;
+      if (consecutive > 2 || repeats > 3) return false;
+      if (strategy.highMode === "split") {
+        const pushMode = stats.highStreak >= 2;
+        if (pushMode && combo.filter((n) => highBand(n) === 2).length < 1) return false;
+        if (!pushMode && combo.filter((n) => highBand(n) === 1).length < 1) return false;
+      }
+      if (stats.sumStd > 0) {
+        const pushMode = strategy.highMode === "split" && stats.highStreak >= 2;
+        const lo = pushMode ? stats.sumMean - stats.sumStd * 0.5 : stats.sumMean - stats.sumStd * strategy.sumLow;
+        const hi = pushMode ? stats.sumMean + stats.sumStd * 3.0 : stats.sumMean + stats.sumStd * strategy.sumHigh;
+        if (!(lo <= total && total <= hi)) return false;
+      }
+      return true;
+    }
+
+    function scoreStrategyCombo(combo, stats, strategy, weights) {
+      const oldHighStreak = stats.highStreak;
+      const raw = comboScore(combo, stats, weights).raw;
+      if (strategy.id === "v1" || strategy.id === "v2") {
+        raw.high = 0;
+      }
+      const totalScore = Object.values(raw).reduce((a, b) => a + b, 0);
+      return { totalScore, raw, oldHighStreak };
+    }
+
+    function buildHighSplitCombos(redPool, stats) {
+      const pushMode = stats.highStreak >= 2;
+      return combinations(redPool, 6).filter((combo) => {
+        const total = combo.reduce((a, b) => a + b, 0);
+        const highA = combo.filter((n) => highBand(n) === 1).length;
+        const highB = combo.filter((n) => highBand(n) === 2).length;
+        if (pushMode) return highB >= 1 && highA >= 1 && total >= stats.sumMean + stats.sumStd * 0.25;
+        return highA >= 2 && total <= stats.sumMean + stats.sumStd * 0.8;
+      });
+    }
+
+    function diversifyResults(results, size) {
+      const uniq = [];
+      const seen = new Set();
+      for (const item of results) {
+        const key = `${item.red.join("-")}+${item.blue}`;
+        if (seen.has(key)) continue;
+        if (uniq.some((picked) => overlapCount(picked.red, item.red) >= 5)) continue;
+        if (uniq.some((picked) => overlapCount(picked.red, item.red) >= 4 && picked.blue === item.blue)) continue;
+        if (uniq.filter((picked) => picked.blue === item.blue).length >= 2) continue;
+        seen.add(key);
+        uniq.push(item);
+        if (uniq.length >= size) break;
+      }
+      if (uniq.length < size) {
+        for (const item of results) {
+          const key = `${item.red.join("-")}+${item.blue}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          uniq.push(item);
+          if (uniq.length >= size) break;
+        }
+      }
+      return uniq;
+    }
+
+    function overlapCount(a, b) {
+      const bSet = new Set(b);
+      return a.filter((n) => bSet.has(n)).length;
+    }
+
+    function combinations(arr, k) {
+      const out = [];
+      const pick = [];
+      function dfs(start) {
+        if (pick.length === k) {
+          out.push(pick.slice());
+          return;
+        }
+        for (let i = start; i < arr.length; i++) {
+          pick.push(arr[i]);
+          dfs(i + 1);
+          pick.pop();
+        }
+      }
+      dfs(0);
+      return out;
+    }
+
+    function fmtBalls(arr) {
+      return arr.map((n) => `<span class="ball">${String(n).padStart(2, "0")}</span>`).join("");
+    }
+
+    function fmtBlue(n) {
+      return `<span class="ball blue">${String(n).padStart(2, "0")}</span>`;
+    }
+
+    function softmaxScores(items) {
+      if (!items.length) return [];
+      const max = Math.max(...items.map((x) => x.score));
+      const exps = items.map((x) => Math.exp((x.score - max) / 8));
+      const sum = exps.reduce((a, b) => a + b, 0);
+      return items.map((x, idx) => ({ ...x, prob: exps[idx] / sum }));
+    }
+
+    function recommendationReason(item, stats) {
+      const red = item.red;
+      const odd = red.filter((n) => n % 2 === 1).length;
+      const small = red.filter((n) => n <= 16).length;
+      const regions = new Set(red.map(region)).size;
+      const repeats = red.filter((n) => stats.lastRed.has(n)).length;
+      return `奇偶 ${odd}:${6 - odd}，大小 ${small}:${6 - small}，覆盖 ${regions} 区，重号 ${repeats} 个`;
+    }
+
+    function drawSummary(draws) {
+      if (!draws.length) return { count: 0, latest: "-", sumAvg: 0 };
+      const sums = draws.map((d) => d.red.reduce((a, b) => a + b, 0));
+      return {
+        count: draws.length,
+        latest: draws[draws.length - 1].period,
+        sumAvg: avg(sums).toFixed(1),
+      };
+    }
+
+    function renderRecommendation(model) {
+      const scored = softmaxScores(model.results);
+      const maxProb = scored.length ? Math.max(...scored.map((x) => x.prob)) : 0;
+
+      $("summaryStats").innerHTML = [
+        statBlock("数据期数", model.drawCount || 0),
+        statBlock("推荐模式", model.ensemble ? "稳定组合" : "单策略"),
+        statBlock("补位策略", model.adaptiveStrategy || "-"),
+      ].join("");
+
+      $("recommendList").innerHTML = scored.length
+        ? scored.map((item, idx) => `
+          <div class="result">
+            <div class="top">
+              <strong>候选 ${idx + 1}</strong>
+              <span class="muted">${item.strategyName || item.strategy || "组合"} · ${item.role || "推荐"} · 相对权重 ${(item.prob * 100).toFixed(1)}%</span>
+            </div>
+            <div style="margin-top:8px">${fmtBalls(item.red)}${fmtBlue(item.blue)}</div>
+            <div class="hint">${recommendationReason(item, model.stats)}</div>
+            <div class="bar"><span style="width:${Math.max(5, item.prob / maxProb * 100)}%"></span></div>
+          </div>
+        `).join("")
+        : `<div class="result">没有生成可用候选，请放宽参数或检查输入数据。</div>`;
+
+      $("modelProb").textContent = scored.length ? `${(maxProb * 100).toFixed(1)}%` : "-";
+      $("modelProbBar").style.width = scored.length ? `${Math.min(100, maxProb * 100)}%` : "0%";
+      $("dataState").textContent = `${model.stats ? "已分析" : "未分析"}`;
+      $("dataStateHint").textContent = model.ensemble
+        ? `组合配比：2注 v4，2注 v2，1注 ${model.adaptiveStrategy || "v3/v5"}；红球池 ${model.redPool.length} 个，蓝球池 ${model.bluePool.length} 个。`
+        : `红球池 ${model.redPool.length} 个，蓝球池 ${model.bluePool.length} 个，胆码 ${model.dan.join(" / ") || "-"}`;
+    }
+
+    function statBlock(k, v) {
+      return `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+    }
+
+    function renderReview(newDraw, model, reviewedDraws) {
+      const hits = newDraw.red.filter((n) => model.redPool.includes(n));
+      const best = model.results[0];
+      const bestHit = best ? best.red.filter((n) => newDraw.red.includes(n)).length : 0;
+      const sum = newDraw.red.reduce((a, b) => a + b, 0);
+      const odd = newDraw.red.filter((n) => n % 2 === 1).length;
+      const small = newDraw.red.filter((n) => n <= 16).length;
+      const regions = new Set(newDraw.red.map(region)).size;
+      const repeat = reviewedDraws.length ? newDraw.red.filter((n) => reviewedDraws[reviewedDraws.length - 1].red.includes(n)).length : 0;
+
+      $("reviewHit").textContent = `${hits.length} 个进入红球池`;
+      $("reviewHitHint").textContent = `与当前候选池交集 ${hits.join(" / ") || "无"}；与首选候选重合 ${bestHit} 个。`;
+
+      const advice = [];
+      if (odd <= 1 || odd >= 5) advice.push("奇偶分布偏极端，下次可适度放宽奇偶约束。");
+      if (small <= 1 || small >= 5) advice.push("大小比偏极端，建议提高大小平衡权重。");
+      if (regions < 3) advice.push("区间覆盖不足，红球池可向缺失区间补点。");
+      if (repeat > 2) advice.push("与上期重号偏多，可以适当压低重号权重。");
+      if (best && bestHit < 3) advice.push("当前候选和新开奖号重合偏少，考虑把热号权重和遗漏权重做轻微回调。");
+      if (!advice.length) advice.push("当前规则对这组号码的覆盖还不错，可以先保持参数不动，继续观察 3-5 期。");
+
+      $("reviewAdvice").textContent = `${odd}:${6 - odd} · ${small}:${6 - small} · ${regions} 区`;
+      $("reviewAdviceHint").textContent = advice.join(" ");
+
+      $("reviewList").innerHTML = `
+        <div class="result">
+          <div class="top"><strong>新开奖号特征</strong><span class="muted">和值 ${sum} · 重号 ${repeat} 个</span></div>
+          <div style="margin-top:8px">${fmtBalls(newDraw.red)}${fmtBlue(newDraw.blue)}</div>
+          <div class="hint">奇偶 ${odd}:${6 - odd}，大小 ${small}:${6 - small}，三区覆盖 ${regions} 区。</div>
+        </div>
+        <div class="result">
+          <div class="top"><strong>优化建议</strong><span class="muted">基于当前参数</span></div>
+          <div class="hint">${advice.map((x) => `• ${x}`).join("<br>")}</div>
+        </div>
+      `;
+    }
+
+    function runBacktest() {
+      try {
+        const history = parseInput($("drawInput").value, getDataOrderMode(), true);
+        const latestText = ($("latestDrawInput").value || $("newDrawInput").value || "").trim();
+        if (history.length < WINDOW) {
+          throw new Error("回测需要至少 20 期历史数据。");
+        }
+        if (!latestText) {
+          throw new Error("请先输入最新一期号码。");
+        }
+        const actual = parseLine(latestText, 1);
+        const report = analyzeStrategiesOnDraw(history, actual, readWeights());
+        recordBacktestRun(report);
+        renderBacktest(report);
+        setTab("backtest");
+        saveState();
+      } catch (err) {
+        alert(err.message || String(err));
+      }
+    }
+
+    function runBatchBacktest() {
+      try {
+        const baseHistory = parseInput($("drawInput").value, getDataOrderMode(), false);
+        const latestText = $("batchDrawInput").value.trim();
+        if (baseHistory.length < WINDOW) {
+          throw new Error("批量回测需要至少 20 期基础历史数据。");
+        }
+        if (!latestText) {
+          throw new Error("请先输入最新多期号码。");
+        }
+        const latestDraws = parseInput(latestText, "newest-first", false);
+        if (!latestDraws.length) {
+          throw new Error("没有解析到可回测的新开奖号。");
+        }
+        const report = analyzeRollingStrategies(baseHistory, latestDraws, readWeights());
+        recordBacktestRun(report);
+        renderBacktest(report);
+        setTab("backtest");
+        saveState();
+      } catch (err) {
+        alert(err.message || String(err));
+      }
+    }
+
+    function analyzeRollingStrategies(baseHistory, latestDraws, weights) {
+      const timeline = baseHistory.slice();
+      const cases = latestDraws.map((actual, idx) => {
+        const history = timeline.slice(-WINDOW);
+        const report = analyzeStrategiesOnDraw(history, actual, weights);
+        timeline.push(actual);
+        return {
+          ...report,
+          caseIndex: idx + 1,
+          historyStart: history[0] ? formatDraw(history[0]) : "-",
+          historyEnd: history[history.length - 1] ? formatDraw(history[history.length - 1]) : "-",
+        };
+      });
+      return {
+        mode: "rolling",
+        baseCount: baseHistory.length,
+        latestCount: latestDraws.length,
+        cases,
+        actual: latestDraws[latestDraws.length - 1],
+        history: timeline.slice(-WINDOW),
+        strategyResults: cases[cases.length - 1].strategyResults,
+        summaries: aggregateRollingSummaries(cases),
+        generatedAt: new Date().toISOString(),
+      };
+    }
+
+    function aggregateRollingSummaries(cases) {
+      return STRATEGIES.map((strategy) => {
+        const rows = cases.map((item) => item.strategyResults.find((x) => x.strategy.id === strategy.id)).filter(Boolean);
+        const bestValues = rows.map((x) => x.bestRed);
+        const avgValues = rows.map((x) => x.avgRed);
+        const blueHits = rows.filter((x) => x.blueHit).length;
+        const hit3 = rows.filter((x) => x.hit3Plus).length;
+        const hit4 = rows.filter((x) => x.hit4Plus).length;
+        const count = rows.length || 1;
+        const avgBest = bestValues.length ? avg(bestValues) : 0;
+        const avgAvg = avgValues.length ? avg(avgValues) : 0;
+        const stableRate = hit3 / count;
+        const longScore = avgBest * 0.5 + avgAvg * 0.3 + blueHits / count * 0.8 + stableRate * 0.7 + hit4 / count * 0.4;
+        return {
+          strategy,
+          avgBest,
+          avgAvg,
+          blueHits,
+          hit3,
+          hit4,
+          recentScore: bestValues[bestValues.length - 1] || 0,
+          longScore,
+          count,
+        };
+      }).sort((a, b) => b.longScore - a.longScore);
+    }
+
+    function analyzeStrategiesOnDraw(history, actual, weights) {
+      const strategyResults = STRATEGIES.map((strategy) => {
+        const model = generateByStrategy(history, strategy, weights);
+        const scored = model.results.map((item) => {
+          const redHits = item.red.filter((n) => actual.red.includes(n));
+          return {
+            ...item,
+            redHitCount: redHits.length,
+            redHits,
+            blueHit: item.blue === actual.blue,
+          };
+        });
+        const best = scored.reduce((acc, item) => (item.redHitCount > acc.redHitCount ? item : acc), scored[0] || { redHitCount: 0, blueHit: false, redHits: [] });
+        return {
+          strategy,
+          model,
+          scored,
+          bestRed: best.redHitCount,
+          avgRed: scored.length ? avg(scored.map((x) => x.redHitCount)) : 0,
+          blueHit: scored.some((x) => x.blueHit),
+          hit3Plus: scored.some((x) => x.redHitCount >= 3),
+          hit4Plus: scored.some((x) => x.redHitCount >= 4),
+          best,
+        };
+      });
+      const summaries = strategyResults.map((item) => ({
+        strategy: item.strategy,
+        avgBest: item.bestRed,
+        avgAvg: item.avgRed,
+        blueHits: item.blueHit ? 1 : 0,
+        hit3: item.hit3Plus ? 1 : 0,
+        hit4: item.hit4Plus ? 1 : 0,
+        recentScore: item.bestRed + (item.blueHit ? 0.5 : 0),
+        longScore: item.bestRed * 0.5 + item.avgRed * 0.3 + (item.blueHit ? 0.8 : 0) + (item.hit3Plus ? 0.7 : 0),
+        count: 1,
+      })).sort((a, b) => b.longScore - a.longScore);
+      return { history, actual, strategyResults, summaries, generatedAt: new Date().toISOString() };
+    }
+
+    function renderBacktest(report) {
+      if (report.mode === "rolling") {
+        renderRollingBacktest(report);
+        return;
+      }
+      const bestLong = report.summaries[0];
+      const bestRecent = [...report.summaries].sort((a, b) => b.recentScore - a.recentScore)[0];
+      const bestBlue = [...report.summaries].sort((a, b) => b.blueHits - a.blueHits || b.avgBest - a.avgBest)[0];
+
+      $("backtestSummary").innerHTML = [
+        statBlock("长期最稳", bestLong ? bestLong.strategy.name : "-"),
+        statBlock("近期最好", bestRecent ? bestRecent.strategy.name : "-"),
+        statBlock("蓝球最好", bestBlue ? `${bestBlue.strategy.name} (${bestBlue.blueHits})` : "-"),
+      ].join("");
+
+      const summaryHtml = `
+        <div class="result">
+          <div class="top"><strong>本次验证</strong><span class="muted">历史 ${report.history.length} 期 + 最新 1 期</span></div>
+          <div style="overflow:auto;margin-top:10px">
+            <table style="width:100%;border-collapse:collapse;min-width:760px">
+              <thead>
+                <tr>
+                  <th style="text-align:left;border-bottom:1px solid var(--line);padding:8px">策略</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">平均最佳红球</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">平均每组红球</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">3红+</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">4红+</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">蓝球</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">综合分</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${report.summaries.map((s) => `
+                  <tr>
+                    <td style="border-bottom:1px solid var(--line);padding:8px">${s.strategy.name}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.avgBest.toFixed(2)}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.avgAvg.toFixed(2)}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.hit3}/${s.count}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.hit4}/${s.count}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.blueHits}/${s.count}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.longScore.toFixed(2)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      const detailHtml = `
+        <div class="result">
+          <div class="top">
+            <strong>最新开奖号</strong>
+            <span class="muted">和值 ${report.actual.red.reduce((a, b) => a + b, 0)}</span>
+          </div>
+          <div style="margin-top:8px">${fmtBalls(report.actual.red)}${fmtBlue(report.actual.blue)}</div>
+        </div>
+        ${report.strategyResults.map((x) => `
+          <div class="result">
+            <div class="top">
+              <strong>${x.strategy.name}</strong>
+              <span class="muted">红球 ${x.bestRed} · 蓝球 ${x.blueHit ? "中" : "未中"}</span>
+            </div>
+            <div class="hint">最优候选：${fmtBalls(x.best.red)}${fmtBlue(x.best.blue)}</div>
+            <div class="hint">候选均值：${x.avgRed.toFixed(2)} · 3红+ ${x.hit3Plus ? "是" : "否"} · 4红+ ${x.hit4Plus ? "是" : "否"}</div>
+          </div>
+        `).join("")}
+      `;
+
+      $("backtestList").innerHTML = summaryHtml + detailHtml;
+      $("backtestHistory").innerHTML = renderBacktestHistory();
+    }
+
+    function renderRollingBacktest(report) {
+      const bestLong = report.summaries[0];
+      const bestStable = [...report.summaries].sort((a, b) => b.hit3 / b.count - a.hit3 / a.count || b.avgBest - a.avgBest)[0];
+      const bestBlue = [...report.summaries].sort((a, b) => b.blueHits - a.blueHits || b.avgBest - a.avgBest)[0];
+
+      $("backtestSummary").innerHTML = [
+        statBlock("综合最稳", bestLong ? bestLong.strategy.name : "-"),
+        statBlock("3红稳定", bestStable ? `${bestStable.strategy.name} (${bestStable.hit3}/${bestStable.count})` : "-"),
+        statBlock("蓝球最好", bestBlue ? `${bestBlue.strategy.name} (${bestBlue.blueHits}/${bestBlue.count})` : "-"),
+      ].join("");
+
+      const summaryHtml = `
+        <div class="result">
+          <div class="top"><strong>批量滚动验证</strong><span class="muted">基础历史 ${report.baseCount} 期 + 新增 ${report.latestCount} 期</span></div>
+          <div class="hint">每一期只使用它开奖前的最新 20 期做推荐验证；验证后才把该期开奖结果滚入下一期窗口。</div>
+          <div style="overflow:auto;margin-top:10px">
+            <table style="width:100%;border-collapse:collapse;min-width:760px">
+              <thead>
+                <tr>
+                  <th style="text-align:left;border-bottom:1px solid var(--line);padding:8px">策略</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">平均最佳红球</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">平均每组红球</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">3红+</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">4红+</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">蓝球</th>
+                  <th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">稳定分</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${report.summaries.map((s) => `
+                  <tr>
+                    <td style="border-bottom:1px solid var(--line);padding:8px">${s.strategy.name}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.avgBest.toFixed(2)}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.avgAvg.toFixed(2)}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.hit3}/${s.count}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.hit4}/${s.count}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.blueHits}/${s.count}</td>
+                    <td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${s.longScore.toFixed(2)}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      const detailHtml = `
+        <div class="result">
+          <div class="top">
+            <strong>逐期明细</strong>
+            <span class="muted">按验证时间从旧到新</span>
+          </div>
+          <div style="overflow:auto;margin-top:10px">
+            <table style="width:100%;border-collapse:collapse;min-width:860px">
+              <thead>
+                <tr>
+                  <th style="text-align:left;border-bottom:1px solid var(--line);padding:8px">期次</th>
+                  <th style="text-align:left;border-bottom:1px solid var(--line);padding:8px">实际开奖号</th>
+                  ${STRATEGIES.map((strategy) => `<th style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${strategy.id}</th>`).join("")}
+                  <th style="text-align:left;border-bottom:1px solid var(--line);padding:8px">本期最好</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${report.cases.map((item) => {
+                  const byStrategy = STRATEGIES.map((strategy) => item.strategyResults.find((x) => x.strategy.id === strategy.id));
+                  const best = item.summaries[0];
+                  return `
+                    <tr>
+                      <td style="border-bottom:1px solid var(--line);padding:8px">第 ${item.caseIndex} 期</td>
+                      <td style="border-bottom:1px solid var(--line);padding:8px">${formatDraw(item.actual)}</td>
+                      ${byStrategy.map((x) => `<td style="text-align:right;border-bottom:1px solid var(--line);padding:8px">${x ? `${x.bestRed}${x.blueHit ? "+蓝" : ""}` : "-"}</td>`).join("")}
+                      <td style="border-bottom:1px solid var(--line);padding:8px">${best ? best.strategy.name : "-"}</td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+
+      const advice = buildRollingAdvice(report);
+      const adviceHtml = `
+        <div class="result">
+          <div class="top"><strong>优化判断</strong><span class="muted">先看稳定，再看爆发</span></div>
+          <div class="hint">${advice.map((x) => `• ${x}`).join("<br>")}</div>
+        </div>
+      `;
+
+      $("backtestList").innerHTML = summaryHtml + detailHtml + adviceHtml;
+      $("backtestHistory").innerHTML = renderBacktestHistory();
+    }
+
+    function buildRollingAdvice(report) {
+      const top = report.summaries[0];
+      const second = report.summaries[1];
+      const stable = [...report.summaries].sort((a, b) => b.hit3 / b.count - a.hit3 / a.count || b.avgBest - a.avgBest)[0];
+      const blue = [...report.summaries].sort((a, b) => b.blueHits - a.blueHits || b.avgBest - a.avgBest)[0];
+      const advice = [];
+      if (top) advice.push(`当前样本里综合最稳的是 ${top.strategy.name}，平均最佳红球 ${top.avgBest.toFixed(2)}，3红+ 为 ${top.hit3}/${top.count}。`);
+      if (second && top && top.longScore - second.longScore < 0.25) advice.push(`${top.strategy.name} 和 ${second.strategy.name} 差距很小，暂时不建议只押单一版本，适合做组合权重。`);
+      if (stable && top && stable.strategy.id !== top.strategy.id) advice.push(`稳定性单项最好的是 ${stable.strategy.name}，后续可以提高它在推荐注数里的占比。`);
+      if (blue) advice.push(`蓝球表现最好的是 ${blue.strategy.name}，但蓝球波动更大，建议单独作为参考，不和红球稳定性混成一个结论。`);
+      advice.push("后续优化应该基于批量回测排名调整策略权重，避免每期开奖后立刻改规则造成追涨杀跌。");
+      return advice;
+    }
+
+    function loadBacktestHistory() {
+      try {
+        const raw = localStorage.getItem("ssq-backtest-history");
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function recordBacktestRun(report) {
+      const history = loadBacktestHistory();
+      const top = report.summaries[0];
+      history.unshift({
+        ts: report.generatedAt,
+        mode: report.mode || "single",
+        latest: report.mode === "rolling" ? `滚动 ${report.latestCount} 期，末期 ${formatDraw(report.actual)}` : formatDraw(report.actual),
+        topStrategy: top ? top.strategy.name : "-",
+        topScore: top ? top.longScore : 0,
+        summary: report.summaries.map((s) => ({
+          id: s.strategy.id,
+          name: s.strategy.name,
+          best: s.avgBest,
+          blueHits: s.blueHits,
+          score: s.longScore,
+        })),
+      });
+      localStorage.setItem("ssq-backtest-history", JSON.stringify(history.slice(0, 30)));
+    }
+
+    function renderBacktestHistory() {
+      const history = loadBacktestHistory();
+      if (!history.length) {
+        return `<div class="result">暂无历史记录。点击一次回测后，这里会自动保存。</div>`;
+      }
+      return history.slice(0, 10).map((item) => `
+        <div class="result">
+          <div class="top">
+            <strong>${item.latest}</strong>
+            <span class="muted">${new Date(item.ts).toLocaleString()} · ${item.topStrategy}</span>
+          </div>
+          <div class="hint">${item.mode === "rolling" ? "批量滚动回测" : "单期回测"} · 最优综合分 ${Number(item.topScore || 0).toFixed(2)}</div>
+        </div>
+      `).join("");
+    }
+
+    function formatDraw(draw) {
+      return `${draw.red.map((n) => String(n).padStart(2, "0")).join(" ")} + ${String(draw.blue).padStart(2, "0")}`;
+    }
+
+    function readWeights() {
+      return {
+        heat: Number($("wHeat").value) || 0,
+        miss: Number($("wMiss").value) || 0,
+        region: Number($("wRegion").value) || 0,
+        odd: Number($("wOdd").value) || 0,
+        size: Number($("wSize").value) || 0,
+        sum: Number($("wSum").value) || 0,
+        con: Number($("wCon").value) || 0,
+        rep: Number($("wRep").value) || 0,
+        blue: Number($("wBlue").value) || 0,
+      };
+    }
+
+    function getTheoreticalOdds() {
+      const total = comb(33, 6) * 16;
+      return `1 / ${Math.round(total).toLocaleString()}`;
+    }
+
+    function runGenerate() {
+      try {
+        app.weights = readWeights();
+        app.draws = parseInput($("drawInput").value).slice(-WINDOW);
+        if (app.draws.length < 10) throw new Error("至少输入 10 期，建议 20 期。");
+        app.candidates = generate(app.draws, app.weights);
+        renderRecommendation(app.candidates);
+        setTab("result");
+        saveState();
+      } catch (err) {
+        alert(err.message || String(err));
+      }
+    }
+
+    function runReview() {
+      try {
+        if (!app.draws.length) app.draws = parseInput($("drawInput").value).slice(-WINDOW);
+        if (app.draws.length < 10) throw new Error("请先输入近 20 期数据。");
+        app.weights = readWeights();
+        const text = $("newDrawInput").value.trim();
+        if (!text) throw new Error("请先输入新开奖号。");
+        const newDraw = text.startsWith("[") ? parseInput(text)[0] : parseLine(text, 1);
+        const reviewed = [...app.draws.slice(1), newDraw].slice(-WINDOW);
+        const model = generate(reviewed, app.weights);
+        renderReview(newDraw, model, app.draws);
+        setTab("review");
+        saveState();
+      } catch (err) {
+        alert(err.message || String(err));
+      }
+    }
+
+    function setTab(name) {
+      document.querySelectorAll(".tab").forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === name));
+      $("tab-input").classList.toggle("hidden", name !== "input");
+      $("tab-result").classList.toggle("hidden", name !== "result");
+      $("tab-review").classList.toggle("hidden", name !== "review");
+      $("tab-backtest").classList.toggle("hidden", name !== "backtest");
+    }
+
+    function saveState() {
+      const state = {
+        drawText: $("drawInput").value,
+        newDrawText: $("newDrawInput").value,
+        latestDrawText: $("latestDrawInput").value,
+        batchDrawText: $("batchDrawInput").value,
+        weights: readWeights(),
+        orderMode: getDataOrderMode(),
+      };
+      localStorage.setItem("ssq-picker-state", JSON.stringify(state));
+    }
+
+    function restoreState() {
+      try {
+        const raw = localStorage.getItem("ssq-picker-state");
+        if (!raw) return;
+        const state = JSON.parse(raw);
+        if (state.drawText) $("drawInput").value = state.drawText;
+        if (state.newDrawText) $("newDrawInput").value = state.newDrawText;
+        if (state.latestDrawText) $("latestDrawInput").value = state.latestDrawText;
+        if (state.batchDrawText) $("batchDrawInput").value = state.batchDrawText;
+        if (state.weights) {
+          $("wHeat").value = state.weights.heat ?? 15;
+          $("wMiss").value = state.weights.miss ?? 15;
+          $("wRegion").value = state.weights.region ?? 15;
+          $("wOdd").value = state.weights.odd ?? 15;
+          $("wSize").value = state.weights.size ?? 15;
+          $("wSum").value = state.weights.sum ?? 10;
+          $("wCon").value = state.weights.con ?? 10;
+          $("wRep").value = state.weights.rep ?? 5;
+          $("wBlue").value = state.weights.blue ?? 5;
+        }
+        if (state.orderMode) $("orderMode").value = state.orderMode;
+      } catch {}
+    }
+
+    $("btnGenerate").addEventListener("click", runGenerate);
+    $("btnAnalyze").addEventListener("click", runReview);
+    $("btnBacktest").addEventListener("click", runBacktest);
+    $("btnQuickBacktest").addEventListener("click", runBacktest);
+    $("btnBatchBacktest").addEventListener("click", runBatchBacktest);
+    $("btnShowBatch").addEventListener("click", () => {
+      setTab("input");
+      $("batchBacktestSection").scrollIntoView({ behavior: "smooth", block: "start" });
+      $("batchDrawInput").focus();
+    });
+    $("btnFill").addEventListener("click", () => {
+      $("drawInput").value = sampleText;
+      saveState();
+    });
+    $("btnClear").addEventListener("click", () => {
+      $("drawInput").value = "";
+      $("newDrawInput").value = "";
+      $("latestDrawInput").value = "";
+      $("batchDrawInput").value = "";
+      $("recommendList").innerHTML = "";
+      $("reviewList").innerHTML = "";
+      $("summaryStats").innerHTML = "";
+      $("reviewHit").textContent = "-";
+      $("reviewAdvice").textContent = "-";
+      $("reviewHitHint").textContent = "等待分析";
+      $("reviewAdviceHint").textContent = "等待分析";
+      $("dataState").textContent = "未载入";
+      $("dataStateHint").textContent = "请先输入近 20 期数据。";
+      saveState();
+    });
+
+    document.querySelectorAll(".tab").forEach((btn) => {
+      btn.addEventListener("click", () => setTab(btn.dataset.tab));
+    });
+    ["drawInput", "newDrawInput", "latestDrawInput", "batchDrawInput", "wHeat", "wMiss", "wRegion", "wOdd", "wSize", "wSum", "wCon", "wRep", "wBlue", "orderMode"].forEach((id) => {
+      $(id).addEventListener("input", saveState);
+    });
+
+    $("theoryOdds").textContent = getTheoreticalOdds();
+    restoreState();
+    $("backtestHistory").innerHTML = renderBacktestHistory();
+    if (!$("drawInput").value.trim()) $("drawInput").value = sampleText;
+    try {
+      app.draws = parseInput($("drawInput").value).slice(-WINDOW);
+      app.weights = readWeights();
+      app.candidates = generate(app.draws, app.weights);
+      renderRecommendation(app.candidates);
+    } catch (err) {
+      $("dataState").textContent = "待输入";
+      $("dataStateHint").textContent = err.message || "请检查输入格式。";
+    }
+  </script>
+</body>
+</html>
